@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 font-mono select-none">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TeleMetrics APM v4.12.0 - Enterprise Cloud Gateway & Observability</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            console: {
+              bg: '#0B0F19',
+              card: '#111827',
+              border: '#1F2937',
+              accent: '#10B981',
+              warn: '#F59E0B',
+              alert: '#EF4444',
+              info: '#3B82F6',
+              text: '#E2E8F0',
+              subtext: '#94A3B8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0B0F19; }
+    ::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #374151; }
+    .scanline {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+      background-size: 100% 4px;
+    }
+  </style>
+</head>
+
+<body class="h-full flex flex-col bg-console-bg text-slate-200 overflow-hidden text-xs md:text-sm">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- PANIC STEALTH OVERLAY -->
+  <div id="panic-screen" class="fixed inset-0 z-50 bg-black text-green-500 p-4 font-mono overflow-hidden hidden flex-col">
+    <div class="flex items-center justify-between border-b border-green-800 pb-2 mb-2 text-xs">
+      <span>[root@k8s-master-node ~]# ./monitor_system_health.sh --live --verbose</span>
+      <span class="animate-pulse bg-green-900 text-green-300 px-2 py-0.5 rounded">SYSTEM NORMAL</span>
+    </div>
+    <div id="panic-terminal-output" class="flex-1 overflow-y-auto space-y-1 text-xs opacity-90 leading-tight"></div>
+    <div class="mt-2 text-slate-600 text-[10px] border-t border-green-950 pt-1 flex justify-between">
+      <span>Press [ESC] or [~] to return to Dashboard</span>
+      <span>PID: 884012 | Threads: 64 | CPU: 14.2%</span>
+    </div>
+  </div>
+
+  <!-- VIEW 1: LANDING SCREEN (BEFORE LOGGING IN) -->
+  <div id="view-landing" class="app-view flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#10B981_1px,transparent_1px)] [background-size:16px_16px]"></div>
+    
+    <div class="max-w-2xl w-full bg-slate-900 border border-console-border rounded-xl p-8 z-10 shadow-2xl space-y-6 text-center">
+      <div class="inline-flex items-center space-x-3 bg-slate-950 px-4 py-2 rounded-full border border-console-border">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-xs font-bold text-emerald-400 tracking-wider">TELEMETRICS OPS v4.12.0 ENGINE</span>
+      </div>
+
+      <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">
+        Unified Cloud Observability & Telemetry Gateway
+      </h1>
+
+      <p class="text-slate-400 text-xs md:text-sm leading-relaxed max-w-lg mx-auto">
+        Monitor distributed Kubernetes clusters, real-time application performance metrics, system trace streams, and cross-operator operational synchronization.
+      </p>
+
+      <div class="grid grid-cols-3 gap-3 py-4 text-left border-y border-console-border">
+        <div class="bg-slate-950 p-3 rounded border border-console-border">
+          <div class="text-emerald-400 font-bold mb-1"><i class="fa-solid fa-server mr-1"></i> Multi-Cluster</div>
+          <div class="text-[11px] text-slate-500">Live stream synchronization across global regions.</div>
+        </div>
+        <div class="bg-slate-950 p-3 rounded border border-console-border">
+          <div class="text-blue-400 font-bold mb-1"><i class="fa-solid fa-shield-halved mr-1"></i> RBAC Enforced</div>
+          <div class="text-[11px] text-slate-500">Role-based access token authentication.</div>
+        </div>
+        <div class="bg-slate-950 p-3 rounded border border-console-border">
+          <div class="text-purple-400 font-bold mb-1"><i class="fa-solid fa-bolt mr-1"></i> Cloud Synced</div>
+          <div class="text-[11px] text-slate-500">Cross-device live session state restoration.</div>
+        </div>
+      </div>
+
+      <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <button onclick="switchView('sso')" class="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold rounded-lg border border-emerald-400 transition text-xs tracking-wider flex items-center justify-center space-x-2">
+          <span>AUTHENTICATE & ACCESS GATEWAY</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-6 text-[10px] text-slate-600 font-mono">
+      Secured with SHA-256 Cloud Provisioning Protocol | Operational Status: ALL SYSTEMS NOMINAL
+    </div>
+  </div>
+
+  <!-- VIEW 2: SINGLE SIGN-ON & ROOM CODE AUTHENTICATION -->
+  <div id="view-sso" class="app-view flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 relative overflow-hidden hidden">
+    <div class="max-w-md w-full bg-slate-900 border border-console-border rounded-xl p-6 z-10 shadow-2xl space-y-5">
+      
+      <div class="border-b border-console-border pb-3 flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-bold text-slate-100 flex items-center space-x-2">
+            <i class="fa-solid fa-key text-emerald-400"></i>
+            <span>Single Sign-On & Namespace Auth</span>
+          </h2>
+          <p class="text-[10px] text-slate-500 mt-0.5">Enter credentials and cluster room code to join or resume session.</p>
+        </div>
+        <button onclick="switchView('landing')" class="text-slate-500 hover:text-slate-200 text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="sso-auth-form" class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">OPERATOR HANDLE (NAME)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-500"><i class="fa-solid fa-user"></i></span>
+            <input type="text" id="sso-handle-input" required placeholder="e.g. operator_dev01"
+                   class="w-full bg-slate-950 text-slate-100 pl-8 pr-3 py-2 rounded border border-console-border focus:border-emerald-500 focus:outline-none text-xs font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">CLUSTER NAMESPACE CODE (ROOM CODE)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-500"><i class="fa-solid fa-network-wired"></i></span>
+            <input type="text" id="sso-room-input" required placeholder="e.g. prod-cluster-99"
+                   class="w-full bg-slate-950 text-slate-100 pl-8 pr-3 py-2 rounded border border-console-border focus:border-emerald-500 focus:outline-none text-xs font-mono uppercase tracking-wider">
+          </div>
+          <p class="text-[9px] text-slate-500 mt-1">Entering an existing Room Code on another device resumes cross-device progress.</p>
+        </div>
+
+        <button type="submit" id="sso-submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold py-2.5 rounded border border-emerald-400 transition text-xs flex items-center justify-center space-x-2">
+          <span>CONNECT TO CLUSTER SESSION</span>
+          <i class="fa-solid fa-plug"></i>
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- VIEW 3: MAIN TELEMETRICS OPS DASHBOARD -->
+  <div id="view-main" class="app-view flex-1 flex-col overflow-hidden hidden">
+    
+    <!-- Top Header -->
+    <header class="h-11 bg-slate-900 border-b border-console-border flex items-center justify-between px-3 shrink-0 z-20 select-none">
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2 text-emerald-400 font-bold tracking-wider cursor-pointer" onclick="switchScreen('telemetry')">
+          <i class="fa-solid fa-server text-base"></i>
+          <span class="text-slate-100 hidden sm:inline">TELEMETRICS<span class="text-emerald-400">.OPS</span></span>
+        </div>
+        <span class="text-slate-700">|</span>
+        
+        <!-- Screen Navigation Tabs -->
+        <nav class="flex items-center space-x-1">
+          <button onclick="switchScreen('telemetry')" id="nav-btn-telemetry" class="px-2.5 py-1 rounded text-xs transition font-semibold text-emerald-400 bg-slate-800 border border-slate-700">
+            <i class="fa-solid fa-terminal mr-1"></i> Log Streams
+          </button>
+          <button onclick="switchScreen('apm')" id="nav-btn-apm" class="px-2.5 py-1 rounded text-xs transition font-semibold text-slate-400 hover:bg-slate-800">
+            <i class="fa-solid fa-chart-line mr-1 text-blue-400"></i> APM Metrics
+          </button>
+          <button onclick="switchScreen('incidents')" id="nav-btn-incidents" class="px-2.5 py-1 rounded text-xs transition font-semibold text-slate-400 hover:bg-slate-800">
+            <i class="fa-solid fa-triangle-exclamation mr-1 text-amber-400"></i> Alerts & Incidents
+          </button>
+          <button onclick="switchScreen('rbac')" id="nav-btn-rbac" class="px-2.5 py-1 rounded text-xs transition font-semibold text-slate-400 hover:bg-slate-800">
+            <i class="fa-solid fa-key mr-1 text-purple-400"></i> RBAC & Keys
+          </button>
+        </nav>
+      </div>
+
+      <!-- Right Active Cluster & Room Display -->
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2 bg-slate-950 px-2 py-1 rounded border border-console-border text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span id="active-room-display" class="font-mono text-emerald-400 font-bold">NS: PROD-99</span>
+        </div>
+
+        <button onclick="switchView('sso')" title="Switch Room Code / Session" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 text-xs">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+
+        <button id="panic-btn" title="Emergency Stealth Terminal (Esc)" 
+                class="flex items-center space-x-1 bg-red-950 hover:bg-red-900 text-red-300 px-2.5 py-1 rounded border border-red-800 transition text-xs font-semibold">
+          <i class="fa-solid fa-shield-cat text-red-400"></i>
+          <span class="hidden sm:inline">PANIC</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- SCREEN 1: LIVE TELEMETRY & LOG STREAMS (CHAT VIEW) -->
+    <div id="screen-telemetry" class="screen-view flex-1 flex overflow-hidden">
+
+      <!-- Cluster & Log Streams Sidebar -->
+      <aside class="w-52 sm:w-64 bg-slate-900 border-r border-console-border flex flex-col shrink-0">
+        <div class="p-2 border-b border-console-border bg-slate-950">
+          <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Active Cluster / Region</label>
+          <select id="cluster-selector" onchange="changeCluster(this.value)" class="w-full bg-slate-900 text-slate-200 border border-console-border rounded px-2 py-1 text-xs focus:outline-none focus:border-emerald-500 font-mono">
+            <option value="us-east-1-prod">us-east-1-prod (Primary)</option>
+            <option value="k8s-cluster-beta">k8s-cluster-beta (Staging)</option>
+            <option value="eu-west-1-dev">eu-west-1-dev (DevOps)</option>
+            <option value="ap-south-1-sec">ap-south-1-sec (SecOps)</option>
+          </select>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-2 space-y-3">
+          <div>
+            <div class="flex items-center justify-between mb-1 px-1">
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <i class="fa-solid fa-list-ul mr-1"></i> Log Channels
+              </span>
+              <button onclick="openNewChannelModal()" class="text-emerald-400 hover:text-emerald-300 text-[10px] font-bold" title="Create New Channel">
+                <i class="fa-solid fa-plus mr-1"></i>New
+              </button>
+            </div>
+            <div id="text-streams-list" class="space-y-0.5"></div>
+          </div>
+        </div>
+
+        <div class="p-2 bg-slate-950 border-t border-console-border text-[11px] flex items-center justify-between text-slate-400">
+          <div class="flex items-center space-x-2 truncate">
+            <div class="w-6 h-6 rounded bg-emerald-900 border border-emerald-600 text-emerald-300 font-bold flex items-center justify-center text-[10px]" id="user-avatar-display">
+              OP
+            </div>
+            <div class="truncate">
+              <div id="user-handle-display" class="font-bold text-slate-200 text-xs truncate">operator_01</div>
+              <div id="user-role-display" class="text-[9px] text-slate-500 truncate">DevOps Lead</div>
+            </div>
+          </div>
+          <button onclick="switchScreen('rbac')" class="text-slate-500 hover:text-slate-200" title="Edit Profile & Key"><i class="fa-solid fa-gear"></i></button>
+        </div>
+      </aside>
+
+      <!-- Main Chat Area -->
+      <main class="flex-1 flex flex-col bg-console-bg relative overflow-hidden">
+        <div class="h-10 border-b border-console-border bg-slate-900/40 px-4 flex items-center justify-between shrink-0">
+          <div class="flex items-center space-x-2">
+            <span class="text-emerald-400 font-bold">#</span>
+            <span id="current-stream-name" class="font-bold text-slate-200">sys-errors</span>
+            <span class="text-slate-600">|</span>
+            <span id="current-stream-topic" class="text-xs text-slate-400 truncate hidden md:inline">Topic: Core exceptions and operator live feed.</span>
+          </div>
+          <div class="flex items-center space-x-2 text-xs text-slate-400">
+            <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+              <i class="fa-solid fa-wifi text-emerald-400 text-[10px] mr-1.5"></i> Live Cloud Stream Active
+            </span>
+          </div>
+        </div>
+
+        <div id="log-feed-container" class="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs"></div>
+
+        <div class="p-3 bg-slate-900/80 border-t border-console-border">
+          <form id="log-input-form" class="flex flex-col space-y-2">
+            
+            <div id="attachment-preview" class="hidden relative bg-slate-950 p-2 rounded border border-emerald-800/50 max-w-xs">
+              <button type="button" id="clear-attachment-btn" class="absolute top-1 right-1 bg-slate-800 text-slate-300 w-4 h-4 rounded-full flex items-center justify-center text-[10px] hover:bg-red-900">&times;</button>
+              <img id="attachment-img" src="" alt="Payload Blob" class="max-h-24 rounded object-cover">
+              <span class="text-[10px] text-emerald-400 block mt-1 font-mono">[Binary Media Payload Loaded]</span>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <select id="log-level-select" class="bg-slate-950 text-slate-200 border border-console-border rounded px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                <option value="INFO" class="text-blue-400">[INFO]</option>
+                <option value="WARN" class="text-yellow-400">[WARN]</option>
+                <option value="ALERT" class="text-red-400">[ALERT]</option>
+                <option value="DEBUG" class="text-purple-400">[DEBUG]</option>
+              </select>
+
+              <div class="flex-1 relative">
+                <input type="text" id="message-text-input" autocomplete="off"
+                       placeholder="Inject log payload or trace message..." 
+                       class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border focus:border-emerald-500 focus:outline-none text-xs font-mono">
+              </div>
+
+              <button type="button" id="open-gif-modal-btn" title="Inject Binary Payload (GIF)" 
+                      class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded border border-console-border flex items-center space-x-1 text-xs">
+                <i class="fa-solid fa-file-code text-emerald-400"></i>
+                <span class="hidden sm:inline">Blob</span>
+              </button>
+
+              <button type="submit" 
+                      class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded border border-emerald-400 flex items-center space-x-1 transition text-xs">
+                <span>PUSH LOG</span>
+                <i class="fa-solid fa-paper-plane text-xs"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+
+      <aside class="w-48 bg-slate-900 border-l border-console-border hidden lg:flex flex-col shrink-0">
+        <div class="p-2.5 border-b border-console-border font-semibold text-[11px] text-slate-400 tracking-wider uppercase flex justify-between items-center">
+          <span>Active Operators</span>
+          <span class="text-emerald-400 font-mono" id="active-nodes-count">1</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-2" id="microservices-list"></div>
+      </aside>
+    </div>
+
+    <!-- SCREEN 2: APM DASHBOARD & METRICS -->
+    <div id="screen-apm" class="screen-view flex-1 flex flex-col p-4 overflow-y-auto space-y-4 hidden">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-slate-900 border border-console-border p-3 rounded-lg">
+          <div class="text-slate-500 text-[10px] uppercase font-mono">CPU Avg Utilization</div>
+          <div class="text-xl font-bold text-emerald-400 font-mono mt-1">28.4%</div>
+          <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-check text-emerald-400 mr-1"></i>48 Pods Healthy</div>
+        </div>
+        <div class="bg-slate-900 border border-console-border p-3 rounded-lg">
+          <div class="text-slate-500 text-[10px] uppercase font-mono">Memory Pressure</div>
+          <div class="text-xl font-bold text-blue-400 font-mono mt-1">62.1 GB / 128 GB</div>
+          <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-arrow-trend-up text-blue-400 mr-1"></i>+1.4% peak</div>
+        </div>
+        <div class="bg-slate-900 border border-console-border p-3 rounded-lg">
+          <div class="text-slate-500 text-[10px] uppercase font-mono">Request Latency (p99)</div>
+          <div class="text-xl font-bold text-amber-400 font-mono mt-1">14.2 ms</div>
+          <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-bolt text-amber-400 mr-1"></i>Edge Router OK</div>
+        </div>
+        <div class="bg-slate-900 border border-console-border p-3 rounded-lg">
+          <div class="text-slate-500 text-[10px] uppercase font-mono">Network Ingest Rate</div>
+          <div class="text-xl font-bold text-purple-400 font-mono mt-1">2.18 Gbps</div>
+          <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-network-wired text-purple-400 mr-1"></i>BGP Peer Active</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-slate-900 border border-console-border rounded-lg p-3">
+          <div class="flex justify-between items-center mb-2 pb-1 border-b border-console-border">
+            <span class="font-bold text-xs text-slate-200">CPU & Memory Utilization (Live Telemetry)</span>
+            <span class="text-[10px] text-slate-500">Metric: k8s_container_resource</span>
+          </div>
+          <div class="h-44">
+            <canvas id="chart-cpu"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-console-border rounded-lg p-3">
+          <div class="flex justify-between items-center mb-2 pb-1 border-b border-console-border">
+            <span class="font-bold text-xs text-slate-200">Request Latency Distribution (p95 / p99)</span>
+            <span class="text-[10px] text-slate-500">Metric: http_response_time_ms</span>
+          </div>
+          <div class="h-44">
+            <canvas id="chart-latency"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="md:col-span-2 bg-slate-900 border border-console-border rounded-lg p-3">
+          <div class="font-bold text-xs text-slate-200 mb-2 pb-1 border-b border-console-border flex justify-between items-center">
+            <span>Active Microservices Health Matrix</span>
+            <span class="text-[10px] text-emerald-400">All Clusters Synchronized</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left font-mono text-[11px]">
+              <thead>
+                <tr class="text-slate-500 border-b border-console-border">
+                  <th class="py-1 px-2">SERVICE</th>
+                  <th class="py-1 px-2">STATUS</th>
+                  <th class="py-1 px-2">UPTIME</th>
+                  <th class="py-1 px-2">LATENCY</th>
+                  <th class="py-1 px-2">ERROR RATE</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-console-border">
+                <tr>
+                  <td class="py-1.5 px-2 font-bold text-slate-200">auth-service-v2</td>
+                  <td class="py-1.5 px-2"><span class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded text-[10px]">HEALTHY</span></td>
+                  <td class="py-1.5 px-2 text-slate-400">99.99%</td>
+                  <td class="py-1.5 px-2 text-slate-400">8ms</td>
+                  <td class="py-1.5 px-2 text-slate-400">0.001%</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-bold text-slate-200">payment-gateway-proxy</td>
+                  <td class="py-1.5 px-2"><span class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded text-[10px]">HEALTHY</span></td>
+                  <td class="py-1.5 px-2 text-slate-400">99.95%</td>
+                  <td class="py-1.5 px-2 text-slate-400">18ms</td>
+                  <td class="py-1.5 px-2 text-slate-400">0.02%</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-bold text-slate-200">telemetry-ingest-worker</td>
+                  <td class="py-1.5 px-2"><span class="bg-amber-950 text-amber-400 border border-amber-800 px-1.5 py-0.5 rounded text-[10px]">DEGRADED</span></td>
+                  <td class="py-1.5 px-2 text-slate-400">98.20%</td>
+                  <td class="py-1.5 px-2 text-slate-400">142ms</td>
+                  <td class="py-1.5 px-2 text-slate-400">1.20%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-console-border rounded-lg p-3 flex flex-col">
+          <div class="font-bold text-xs text-slate-200 mb-2 pb-1 border-b border-console-border flex justify-between items-center">
+            <span>APM Inspector Log Notes</span>
+            <i class="fa-solid fa-pencil text-slate-500"></i>
+          </div>
+          <div id="apm-quick-notes-feed" class="flex-1 overflow-y-auto space-y-2 text-[11px] mb-2 pr-1 max-h-40"></div>
+          <form id="apm-quick-note-form" class="flex space-x-1 pt-2 border-t border-console-border">
+            <input type="text" id="apm-note-input" placeholder="Append inspector note..." 
+                   class="flex-1 bg-slate-950 border border-console-border rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-slate-950 font-bold px-2 py-1 rounded text-xs">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: INCIDENT RESPONSE BOARD -->
+    <div id="screen-incidents" class="screen-view flex-1 flex flex-col p-4 overflow-hidden hidden">
+      <div class="flex justify-between items-center mb-3 shrink-0">
+        <div>
+          <h2 class="font-bold text-sm text-slate-100 flex items-center space-x-2">
+            <i class="fa-solid fa-bell text-amber-400"></i>
+            <span>Active Alerts & Incident Response Board</span>
+          </h2>
+          <p class="text-[10px] text-slate-500">Track and discuss critical system anomalies across operators.</p>
+        </div>
+
+        <button onclick="openNewIncidentModal()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded border border-amber-400 text-xs flex items-center space-x-1">
+          <i class="fa-solid fa-plus"></i>
+          <span>CREATE INCIDENT</span>
+        </button>
+      </div>
+
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3 overflow-y-auto">
+        <div class="bg-slate-900 border border-console-border rounded-lg p-2 flex flex-col">
+          <div class="font-bold text-xs text-slate-300 pb-2 mb-2 border-b border-console-border flex justify-between items-center">
+            <span>[TRIAGE]</span>
+            <span class="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded text-[10px]" id="count-triage">0</span>
+          </div>
+          <div id="col-triage" class="flex-1 space-y-2 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="bg-slate-900 border border-console-border rounded-lg p-2 flex flex-col">
+          <div class="font-bold text-xs text-blue-400 pb-2 mb-2 border-b border-console-border flex justify-between items-center">
+            <span>[IN PROGRESS]</span>
+            <span class="bg-blue-950 text-blue-400 px-1.5 py-0.5 rounded text-[10px]" id="count-progress">0</span>
+          </div>
+          <div id="col-progress" class="flex-1 space-y-2 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="bg-slate-900 border border-console-border rounded-lg p-2 flex flex-col">
+          <div class="font-bold text-xs text-emerald-400 pb-2 mb-2 border-b border-console-border flex justify-between items-center">
+            <span>[RESOLVED]</span>
+            <span class="bg-emerald-950 text-emerald-400 px-1.5 py-0.5 rounded text-[10px]" id="count-resolved">0</span>
+          </div>
+          <div id="col-resolved" class="flex-1 space-y-2 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="bg-slate-900 border border-console-border rounded-lg p-2 flex flex-col">
+          <div class="font-bold text-xs text-slate-500 pb-2 mb-2 border-b border-console-border flex justify-between items-center">
+            <span>[SILENCED]</span>
+            <span class="bg-slate-950 text-slate-600 px-1.5 py-0.5 rounded text-[10px]" id="count-silenced">0</span>
+          </div>
+          <div id="col-silenced" class="flex-1 space-y-2 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: RBAC MANAGEMENT -->
+    <div id="screen-rbac" class="screen-view flex-1 flex flex-col p-4 overflow-y-auto space-y-4 hidden">
+      <div class="max-w-4xl mx-auto w-full space-y-4">
+        <div class="bg-slate-900 border border-console-border rounded-lg p-4 space-y-4">
+          <div class="border-b border-console-border pb-2 flex justify-between items-center">
+            <div>
+              <h3 class="font-bold text-sm text-slate-100 flex items-center space-x-2">
+                <i class="fa-solid fa-user-shield text-purple-400"></i>
+                <span>Operator Identity & Access Provisioning</span>
+              </h3>
+              <p class="text-[10px] text-slate-500">Configure your operator handle and select your active role.</p>
+            </div>
+            <span class="bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded text-[10px]">RBAC ACTIVE</span>
+          </div>
+
+          <form id="profile-config-form" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">OPERATOR HANDLE</label>
+              <input type="text" id="rbac-handle-input" required 
+                     class="w-full bg-slate-950 text-slate-100 px-3 py-1.5 rounded border border-console-border focus:border-emerald-500 focus:outline-none font-mono text-xs">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">ASSIGNED ROLE</label>
+              <select id="rbac-role-select" class="w-full bg-slate-950 text-slate-100 px-3 py-1.5 rounded border border-console-border focus:border-emerald-500 focus:outline-none font-mono text-xs">
+              </select>
+            </div>
+
+            <div class="flex items-end">
+              <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold py-1.5 rounded border border-emerald-400 transition text-xs">
+                UPDATE IDENTITY
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Dynamic Role and Rules Manager Panel -->
+        <div class="bg-slate-900 border border-console-border rounded-lg p-4 space-y-4">
+          <div class="border-b border-console-border pb-2 flex justify-between items-center">
+            <div>
+              <h3 class="font-bold text-xs text-slate-200 flex items-center space-x-2">
+                <i class="fa-solid fa-id-card text-emerald-400"></i>
+                <span>Roles & Security Rules Manager</span>
+              </h3>
+              <p class="text-[10px] text-slate-500">Add or rename system roles and define access rules for operators.</p>
+            </div>
+            <button onclick="openAddRoleModal()" class="bg-purple-600 hover:bg-purple-500 text-slate-950 font-bold px-2.5 py-1 rounded border border-purple-400 text-xs flex items-center space-x-1">
+              <i class="fa-solid fa-plus"></i>
+              <span>Add Role</span>
+            </button>
+          </div>
+
+          <div id="roles-manager-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+
+        <div class="bg-slate-900 border border-console-border rounded-lg p-4 space-y-3">
+          <div class="border-b border-console-border pb-2 flex justify-between items-center">
+            <h3 class="font-bold text-xs text-slate-200 flex items-center space-x-2">
+              <i class="fa-solid fa-key text-amber-400"></i>
+              <span>Active Telemetry Ingestion Keys</span>
+            </h3>
+            <button onclick="generateNewKey()" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-2.5 py-1 rounded border border-slate-700 text-xs">
+              + Generate Key
+            </button>
+          </div>
+
+          <div id="keys-list" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL: ADD / EDIT LOG CHANNEL -->
+  <div id="channel-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-console-border rounded-lg w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+      <div class="p-3 border-b border-console-border flex justify-between items-center bg-slate-950">
+        <span class="font-bold text-xs text-emerald-400"><i class="fa-solid fa-hashtag mr-2"></i>Create Log Channel</span>
+        <button onclick="closeChannelModal()" class="text-slate-400 hover:text-slate-100">&times;</button>
+      </div>
+      <form id="channel-form" class="p-4 space-y-3">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">CHANNEL NAME</label>
+          <input type="text" id="channel-name-input" required placeholder="e.g. security-audit"
+                 class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border text-xs focus:outline-none focus:border-emerald-500 font-mono">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">TOPIC / DESCRIPTION</label>
+          <input type="text" id="channel-topic-input" required placeholder="e.g. Audit trails for OAuth token generation."
+                 class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border text-xs focus:outline-none focus:border-emerald-500 font-mono">
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeChannelModal()" class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded text-xs">Cancel</button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded text-xs">Save Channel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT ROLE -->
+  <div id="role-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-console-border rounded-lg w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+      <div class="p-3 border-b border-console-border flex justify-between items-center bg-slate-950">
+        <span id="role-modal-title" class="font-bold text-xs text-purple-400"><i class="fa-solid fa-user-shield mr-2"></i>Manage Role</span>
+        <button onclick="closeRoleModal()" class="text-slate-400 hover:text-slate-100">&times;</button>
+      </div>
+      <form id="role-form" class="p-4 space-y-3">
+        <input type="hidden" id="role-edit-id">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">ROLE NAME</label>
+          <input type="text" id="role-name-input" required placeholder="e.g. SecOps Auditor"
+                 class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border text-xs focus:outline-none focus:border-purple-500 font-mono">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">DESCRIPTION</label>
+          <input type="text" id="role-desc-input" placeholder="e.g. Read-only audit access for compliance logs."
+                 class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border text-xs focus:outline-none focus:border-purple-500 font-mono">
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeRoleModal()" class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded text-xs">Cancel</button>
+          <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-slate-950 font-bold px-3 py-1.5 rounded text-xs">Save Role</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD RULE TO ROLE -->
+  <div id="rule-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-console-border rounded-lg w-full max-w-sm overflow-hidden flex flex-col shadow-2xl">
+      <div class="p-3 border-b border-console-border flex justify-between items-center bg-slate-950">
+        <span class="font-bold text-xs text-emerald-400"><i class="fa-solid fa-gavel mr-2"></i>Add Rule Permission</span>
+        <button onclick="closeRuleModal()" class="text-slate-400 hover:text-slate-100">&times;</button>
+      </div>
+      <form id="rule-form" class="p-4 space-y-3">
+        <input type="hidden" id="rule-target-role-id">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">RULE PERMISSION STATEMENT</label>
+          <input type="text" id="rule-text-input" required placeholder="e.g. allow_telemetry_purge"
+                 class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border text-xs focus:outline-none focus:border-emerald-500 font-mono">
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeRuleModal()" class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded text-xs">Cancel</button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded text-xs">Add Rule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE NEW INCIDENT -->
+  <div id="incident-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-console-border rounded-lg w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+      <div class="p-3 border-b border-console-border flex justify-between items-center bg-slate-950">
+        <span class="font-bold text-xs text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Create Incident Ticket</span>
+        <button onclick="closeIncidentModal()" class="text-slate-400 hover:text-slate-100">&times;</button>
+      </div>
+      <form id="new-incident-form" class="p-4 space-y-3">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">INCIDENT TITLE</label>
+          <input type="text" id="inc-title-input" required placeholder="e.g. Memory Pressure on Auth Pod"
+                 class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border text-xs focus:outline-none focus:border-amber-500 font-mono">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">PRIORITY</label>
+          <select id="inc-priority-select" class="w-full bg-slate-950 text-slate-200 px-3 py-1.5 rounded border border-console-border text-xs focus:outline-none focus:border-amber-500 font-mono">
+            <option value="P1-CRITICAL">P1 - CRITICAL</option>
+            <option value="P2-HIGH">P2 - HIGH</option>
+            <option value="P3-LOW">P3 - LOW</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 mb-1">DESCRIPTION & INITIAL TRACE</label>
+          <textarea id="inc-desc-input" required rows="3" placeholder="Describe the anomaly and suspected service impact..."
+                    class="w-full bg-slate-950 text-slate-200 p-2 rounded border border-console-border text-xs focus:outline-none focus:border-amber-500 font-mono"></textarea>
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeIncidentModal()" class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded text-xs">Cancel</button>
+          <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded text-xs">Publish Incident</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: INCIDENT THREAD DISCUSSION -->
+  <div id="incident-thread-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-console-border rounded-lg w-full max-w-lg h-[80vh] overflow-hidden flex flex-col shadow-2xl">
+      <div class="p-3 border-b border-console-border flex justify-between items-center bg-slate-950">
+        <div>
+          <span id="thread-priority-badge" class="px-1.5 py-0.5 rounded text-[9px] font-bold mr-2">P1</span>
+          <span id="thread-title-display" class="font-bold text-xs text-slate-200">Incident Thread</span>
+        </div>
+        <button onclick="closeThreadModal()" class="text-slate-400 hover:text-slate-100">&times;</button>
+      </div>
+      
+      <div id="thread-messages-list" class="flex-1 overflow-y-auto p-4 space-y-2 text-xs font-mono"></div>
+
+      <form id="thread-reply-form" class="p-3 border-t border-console-border bg-slate-950 flex space-x-2">
+        <input type="text" id="thread-reply-input" placeholder="Reply to incident trace..." required
+               class="flex-1 bg-slate-900 border border-console-border rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+        <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded text-xs">
+          Reply
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GIF BLOB SELECTOR -->
+  <div id="gif-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-console-border rounded-lg w-full max-w-lg overflow-hidden flex flex-col shadow-2xl">
+      <div class="p-3 border-b border-console-border flex justify-between items-center bg-slate-950">
+        <span class="font-bold text-xs text-emerald-400"><i class="fa-solid fa-database mr-2"></i>Select Binary Payload GIF</span>
+        <button id="close-gif-modal-btn" class="text-slate-400 hover:text-slate-100">&times;</button>
+      </div>
+      <div id="gif-grid" class="p-3 grid grid-cols-2 gap-2 max-h-72 overflow-y-auto"></div>
+      <div class="p-2 border-t border-console-border bg-slate-950 text-right">
+        <button id="cancel-gif-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1 rounded">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIREBASE & CORE SCRIPT MODULE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Global state
+    window.STATE = {
+      activeView: 'landing',
+      activeScreen: 'telemetry',
+      currentCluster: 'us-east-1-prod',
+      currentStreamId: 'sys-errors',
+      selectedGif: null,
+      activeThreadId: null,
+
+      roomCode: 'PROD-99',
+      user: {
+        handle: 'operator_01',
+        role: 'DevOps Lead',
+        avatar: 'OP'
+      },
+
+      roles: [
+        { id: 'role_devops', name: 'DevOps Lead', desc: 'Full access to infrastructure and log streams', rules: ['allow_all_telemetry', 'manage_incidents', 'edit_channels'] },
+        { id: 'role_sysadmin', name: 'Root / SysAdmin', desc: 'Cluster superuser access', rules: ['system_admin_override', 'purge_logs'] },
+        { id: 'role_secops', name: 'SecOps Analyst', desc: 'Security audit and policy inspection', rules: ['read_audit_stream', 'flag_security_alert'] },
+        { id: 'role_sre', name: 'Site Reliability Eng', desc: 'APM metrics and uptime diagnostics', rules: ['view_apm_metrics', 'create_incidents'] }
+      ],
+
+      streams: [
+        { id: 'sys-errors', name: 'sys-errors', topic: 'Unhandled core exceptions and critical crash dumps.' },
+        { id: 'app-telemetry', name: 'app-telemetry', topic: 'Microservice RPC latency traces and HTTP telemetry.' },
+        { id: 'lounge-chat', name: 'lounge-chat', topic: 'Operator lounge and binary blob attachment sandbox.' },
+        { id: 'deployments', name: 'deployments', topic: 'CI/CD runner hooks and automated deployment logs.' }
+      ],
+
+      presetGifs: [
+        { title: 'System Hacker', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdW4ycm9tbjZkNDYzbWR2ODZsc2F3OGVrcmVxZzRhZHBicryvOHZ6ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Y352538/giphy.gif' },
+        { title: 'Matrix Rain Code', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOW11aWhldDhyMjVtc3JscGdtNjUxd2p1ZnUxdjdyYnR4MjRxNWVpbiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eCqFYAVVUecms/giphy.gif' },
+        { title: 'Server Room Cat', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExODF4Y2YydHRmbmkyOHhhbHQwb3V5bzM1aWF5ZjBqMmthczlyNmRhNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JIX9t2j0ZTN9S/giphy.gif' }
+      ]
+    };
+
+    // Initialize Firebase
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'telemetrics-ops-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+      apiKey: "demo-key",
+      authDomain: "demo.firebaseapp.com",
+      projectId: "demo-project"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let dbListeners = [];
+
+    // Authenticate with Firebase before queries
+    async function initAuth() {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.warn("Firebase Auth fallback:", err);
+      }
+    }
+
+    // View Switcher (Landing vs SSO vs Main App)
+    window.switchView = function(viewId) {
+      STATE.activeView = viewId;
+      document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById(`view-${viewId}`);
+      if (target) {
+        if (viewId === 'main') {
+          target.classList.remove('hidden');
+          target.classList.add('flex');
+        } else {
+          target.classList.remove('hidden');
+        }
+      }
+    };
+
+    // Screen Switcher inside Main View
+    window.switchScreen = function(screenId) {
+      STATE.activeScreen = screenId;
+      document.querySelectorAll('.screen-view').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`screen-${screenId}`).classList.remove('hidden');
+
+      ['telemetry', 'apm', 'incidents', 'rbac'].forEach(s => {
+        const btn = document.getElementById(`nav-btn-${s}`);
+        if (s === screenId) {
+          btn.className = "px-2.5 py-1 rounded text-xs transition font-semibold text-emerald-400 bg-slate-800 border border-slate-700";
+        } else {
+          btn.className = "px-2.5 py-1 rounded text-xs transition font-semibold text-slate-400 hover:bg-slate-800";
+        }
+      });
+
+      if (screenId === 'telemetry') {
+        renderStreams();
+        renderMessages();
+      } else if (screenId === 'apm') {
+        renderAPMNotes();
+      } else if (screenId === 'incidents') {
+        renderIncidents();
+      } else if (screenId === 'rbac') {
+        renderRoleOptions();
+        renderRolesManager();
+        renderKeys();
+      }
+    };
+
+    // Toast helper
+    window.showToast = function(msg) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = "bg-slate-900 border border-emerald-500 text-slate-100 px-3 py-2 rounded shadow-xl text-xs font-mono pointer-events-auto flex items-center space-x-2";
+      toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i><span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    };
+
+    // Setup Cross-Device Firestore Sync for current Room Code
+    function setupRoomSync() {
+      // Clear old listeners
+      dbListeners.forEach(unsubscribe => unsubscribe());
+      dbListeners = [];
+
+      if (!auth.currentUser) return;
+
+      const roomClean = STATE.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      
+      // Strict Path Rule: /artifacts/{appId}/public/data/{collectionName}
+      const logsCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_logs`);
+      const notesCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_notes`);
+      const incidentsCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_incidents`);
+      const channelsCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_channels`);
+      const rolesCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_roles`);
+
+      // Realtime Logs Listener
+      const logUnsub = onSnapshot(logsCol, (snapshot) => {
+        const logsMap = {};
+        snapshot.docs.forEach(docSnap => {
+          const data = docSnap.data();
+          if (!logsMap[data.streamId]) logsMap[data.streamId] = [];
+          logsMap[data.streamId].push(data);
+        });
+
+        // Sort in memory (Rule 2: No compound query)
+        Object.keys(logsMap).forEach(s => {
+          logsMap[s].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        });
+
+        window.cachedLogs = logsMap;
+        if (STATE.activeScreen === 'telemetry') renderMessages();
+      }, (err) => console.error("Logs sync error:", err));
+      dbListeners.push(logUnsub);
+
+      // Realtime APM Notes Listener
+      const notesUnsub = onSnapshot(notesCol, (snapshot) => {
+        const notes = snapshot.docs.map(docSnap => docSnap.data());
+        notes.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        window.cachedNotes = notes;
+        if (STATE.activeScreen === 'apm') renderAPMNotes();
+      }, (err) => console.error("Notes sync error:", err));
+      dbListeners.push(notesUnsub);
+
+      // Realtime Incidents Listener
+      const incUnsub = onSnapshot(incidentsCol, (snapshot) => {
+        const incs = snapshot.docs.map(docSnap => docSnap.data());
+        incs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        window.cachedIncidents = incs;
+        if (STATE.activeScreen === 'incidents') renderIncidents();
+      }, (err) => console.error("Incidents sync error:", err));
+      dbListeners.push(incUnsub);
+
+      // Realtime Channels Listener
+      const chanUnsub = onSnapshot(channelsCol, (snapshot) => {
+        if (!snapshot.empty) {
+          const syncStreams = snapshot.docs.map(docSnap => docSnap.data());
+          STATE.streams = syncStreams;
+          if (STATE.activeScreen === 'telemetry') renderStreams();
+        }
+      }, (err) => console.error("Channels sync error:", err));
+      dbListeners.push(chanUnsub);
+
+      // Realtime Roles Listener
+      const rolesUnsub = onSnapshot(rolesCol, (snapshot) => {
+        if (!snapshot.empty) {
+          const syncRoles = snapshot.docs.map(docSnap => docSnap.data());
+          STATE.roles = syncRoles;
+          if (STATE.activeScreen === 'rbac') {
+            renderRoleOptions();
+            renderRolesManager();
+          }
+        }
+      }, (err) => console.error("Roles sync error:", err));
+      dbListeners.push(rolesUnsub);
+    }
+
+    // SSO Form Submit Handler (Only Handle & Room Code)
+    document.getElementById('sso-auth-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const handle = document.getElementById('sso-handle-input').value.trim();
+      const room = document.getElementById('sso-room-input').value.trim().toUpperCase();
+
+      if (!handle || !room) return;
+
+      STATE.user.handle = handle;
+      STATE.user.avatar = handle.substring(0,2).toUpperCase();
+      STATE.roomCode = room;
+
+      localStorage.setItem('telemetrics_saved_session', JSON.stringify({
+        user: STATE.user,
+        roomCode: STATE.roomCode
+      }));
+
+      updateUserDisplay();
+      setupRoomSync();
+
+      switchView('main');
+      showToast(`Connected as [${handle}] in Namespace [${room}]`);
+    };
+
+    function updateUserDisplay() {
+      document.getElementById('user-handle-display').textContent = STATE.user.handle;
+      document.getElementById('user-role-display').textContent = STATE.user.role;
+      document.getElementById('user-avatar-display').textContent = STATE.user.avatar;
+      document.getElementById('rbac-handle-input').value = STATE.user.handle;
+      document.getElementById('active-room-display').textContent = `NS: ${STATE.roomCode}`;
+      renderRoleOptions();
+    }
+
+    // Render Stream List
+    window.renderStreams = function() {
+      const listEl = document.getElementById('text-streams-list');
+      listEl.innerHTML = '';
+
+      STATE.streams.forEach(stream => {
+        const isActive = stream.id === STATE.currentStreamId;
+        const btn = document.createElement('div');
+        btn.className = `w-full px-2 py-1.5 rounded flex items-center justify-between text-xs transition group cursor-pointer ${
+          isActive ? 'bg-slate-800 text-emerald-400 font-semibold border-l-2 border-emerald-400' : 'text-slate-400 hover:bg-slate-800/50'
+        }`;
+        
+        btn.onclick = () => {
+          STATE.currentStreamId = stream.id;
+          document.getElementById('current-stream-name').textContent = stream.name;
+          document.getElementById('current-stream-topic').textContent = `Topic: ${stream.topic}`;
+          renderStreams();
+          renderMessages();
+        };
+
+        btn.innerHTML = `
+          <div class="flex items-center space-x-2 truncate">
+            <span class="text-slate-500 font-mono">#</span>
+            <span class="truncate">${stream.name}</span>
+          </div>
+          <button onclick="event.stopPropagation(); deleteChannel('${stream.id}')" class="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition px-1" title="Delete Channel">
+            <i class="fa-solid fa-trash-can text-[10px]"></i>
+          </button>
+        `;
+        listEl.appendChild(btn);
+      });
+    };
+
+    // Channel Modal & Actions
+    window.openNewChannelModal = () => document.getElementById('channel-modal').classList.remove('hidden');
+    window.closeChannelModal = () => document.getElementById('channel-modal').classList.add('hidden');
+
+    document.getElementById('channel-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('channel-name-input').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      const topic = document.getElementById('channel-topic-input').value.trim();
+
+      if (!name) return;
+
+      const newChan = { id: name, name, topic: topic || 'Custom telemetry stream.' };
+      STATE.streams.push(newChan);
+      STATE.currentStreamId = name;
+
+      const roomClean = STATE.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      const channelsCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_channels`);
+
+      try {
+        await addDoc(channelsCol, newChan);
+        closeChannelModal();
+        renderStreams();
+        renderMessages();
+        showToast(`Channel #${name} created.`);
+      } catch (err) {
+        console.error("Error saving channel:", err);
+      }
+    };
+
+    window.deleteChannel = function(id) {
+      if (STATE.streams.length <= 1) {
+        showToast('At least one log channel is required.');
+        return;
+      }
+      STATE.streams = STATE.streams.filter(s => s.id !== id);
+      if (STATE.currentStreamId === id) {
+        STATE.currentStreamId = STATE.streams[0].id;
+      }
+      renderStreams();
+      renderMessages();
+      showToast(`Channel #${id} removed.`);
+    };
+
+    // Role & Rule Management Logic
+    function renderRoleOptions() {
+      const select = document.getElementById('rbac-role-select');
+      select.innerHTML = '';
+      STATE.roles.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.name;
+        opt.textContent = r.name;
+        if (r.name === STATE.user.role) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function renderRolesManager() {
+      const list = document.getElementById('roles-manager-list');
+      list.innerHTML = '';
+
+      STATE.roles.forEach(role => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950 border border-console-border p-3 rounded-lg flex flex-col justify-between space-y-2';
+
+        const rulesHtml = (role.rules || []).map(rule => `
+          <span class="inline-flex items-center bg-slate-900 border border-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] space-x-1">
+            <span>${rule}</span>
+            <button onclick="deleteRuleFromRole('${role.id}', '${rule}')" class="text-slate-500 hover:text-red-400 ml-1">&times;</button>
+          </span>
+        `).join(' ');
+
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="font-bold text-slate-200 text-xs">${role.name}</span>
+              <div class="flex items-center space-x-1">
+                <button onclick="openEditRoleModal('${role.id}')" class="text-slate-400 hover:text-slate-200 text-xs px-1" title="Edit Role Name">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button onclick="deleteRole('${role.id}')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Delete Role">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-500 mb-2">${role.desc || 'No description provided.'}</p>
+            <div class="flex flex-wrap gap-1 mb-2">
+              ${rulesHtml || '<span class="text-[10px] text-slate-600 italic">No permission rules defined.</span>'}
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-900 flex justify-end">
+            <button onclick="openAddRuleModal('${role.id}')" class="bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-emerald-900 px-2 py-1 rounded text-[10px] flex items-center space-x-1">
+              <i class="fa-solid fa-plus text-[9px]"></i>
+              <span>Add Rule</span>
+            </button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    // Role Modals Handlers
+    window.openAddRoleModal = () => {
+      document.getElementById('role-edit-id').value = '';
+      document.getElementById('role-modal-title').textContent = 'Create New Role';
+      document.getElementById('role-name-input').value = '';
+      document.getElementById('role-desc-input').value = '';
+      document.getElementById('role-modal').classList.remove('hidden');
+    };
+
+    window.openEditRoleModal = (roleId) => {
+      const role = STATE.roles.find(r => r.id === roleId);
+      if (!role) return;
+      document.getElementById('role-edit-id').value = role.id;
+      document.getElementById('role-modal-title').textContent = 'Edit Role Name';
+      document.getElementById('role-name-input').value = role.name;
+      document.getElementById('role-desc-input').value = role.desc || '';
+      document.getElementById('role-modal').classList.remove('hidden');
+    };
+
+    window.closeRoleModal = () => document.getElementById('role-modal').classList.add('hidden');
+
+    document.getElementById('role-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('role-edit-id').value;
+      const name = document.getElementById('role-name-input').value.trim();
+      const desc = document.getElementById('role-desc-input').value.trim();
+
+      if (!name) return;
+
+      if (editId) {
+        const role = STATE.roles.find(r => r.id === editId);
+        if (role) {
+          role.name = name;
+          role.desc = desc;
+        }
+      } else {
+        const newRole = {
+          id: `role_${Date.now()}`,
+          name,
+          desc,
+          rules: ['basic_access']
+        };
+        STATE.roles.push(newRole);
+      }
+
+      closeRoleModal();
+      renderRoleOptions();
+      renderRolesManager();
+      syncRolesToCloud();
+      showToast('Role updated successfully.');
+    };
+
+    window.deleteRole = (roleId) => {
+      if (STATE.roles.length <= 1) {
+        showToast('At least one security role must exist.');
+        return;
+      }
+      STATE.roles = STATE.roles.filter(r => r.id !== roleId);
+      renderRoleOptions();
+      renderRolesManager();
+      syncRolesToCloud();
+      showToast('Role deleted.');
+    };
+
+    // Rule Modal Handlers
+    window.openAddRuleModal = (roleId) => {
+      document.getElementById('rule-target-role-id').value = roleId;
+      document.getElementById('rule-text-input').value = '';
+      document.getElementById('rule-modal').classList.remove('hidden');
+    };
+
+    window.closeRuleModal = () => document.getElementById('rule-modal').classList.add('hidden');
+
+    document.getElementById('rule-form').onsubmit = (e) => {
+      e.preventDefault();
+      const roleId = document.getElementById('rule-target-role-id').value;
+      const ruleText = document.getElementById('rule-text-input').value.trim().toLowerCase().replace(/\s+/g, '_');
+
+      const role = STATE.roles.find(r => r.id === roleId);
+      if (role && ruleText) {
+        if (!role.rules) role.rules = [];
+        if (!role.rules.includes(ruleText)) role.rules.push(ruleText);
+      }
+
+      closeRuleModal();
+      renderRolesManager();
+      syncRolesToCloud();
+      showToast(`Rule '${ruleText}' added to ${role.name}.`);
+    };
+
+    window.deleteRuleFromRole = (roleId, ruleText) => {
+      const role = STATE.roles.find(r => r.id === roleId);
+      if (role && role.rules) {
+        role.rules = role.rules.filter(r => r !== ruleText);
+      }
+      renderRolesManager();
+      syncRolesToCloud();
+      showToast('Rule removed.');
+    };
+
+    async function syncRolesToCloud() {
+      const roomClean = STATE.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      const rolesCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_roles`);
+      try {
+        for (const role of STATE.roles) {
+          await addDoc(rolesCol, role);
+        }
+      } catch (err) {
+        console.error("Cloud role sync error:", err);
+      }
+    }
+
+    // Render Stream Messages
+    window.renderMessages = function() {
+      const container = document.getElementById('log-feed-container');
+      container.innerHTML = '';
+      
+      const logsMap = window.cachedLogs || {};
+      const streamLogs = logsMap[STATE.currentStreamId] || [
+        { id: 1, timestamp: '10:00:00', level: 'INFO', sender: 'sys_init', role: 'System', text: `Cluster Session Namespace [${STATE.roomCode}] Initialized.` }
+      ];
+
+      streamLogs.forEach(msg => {
+        const row = document.createElement('div');
+        row.className = 'p-2 rounded hover:bg-slate-900/60 border border-transparent hover:border-slate-800 transition font-mono flex flex-col space-y-1';
+
+        let levelClass = 'text-blue-400 bg-blue-950/40 border-blue-800/40';
+        if (msg.level === 'WARN') levelClass = 'text-yellow-400 bg-yellow-950/40 border-yellow-800/40';
+        if (msg.level === 'ALERT') levelClass = 'text-red-400 bg-red-950/40 border-red-800/40';
+
+        row.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <span class="text-slate-500 text-[10px]">${msg.timestamp}</span>
+            <span class="text-[10px] px-1 rounded border ${levelClass} font-bold">[${msg.level}]</span>
+            <span class="text-slate-200 font-semibold">[svc:${msg.sender}]</span>
+          </div>
+          <div class="text-slate-300 pl-2 border-l border-slate-800 mt-0.5">${msg.text}</div>
+          ${msg.gif ? `<img src="${msg.gif}" class="mt-1 max-h-32 rounded border border-emerald-900/50 object-cover">` : ''}
+        `;
+        container.appendChild(row);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    };
+
+    // Handle Sending Log Message
+    document.getElementById('log-input-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const textInput = document.getElementById('message-text-input');
+      const levelSelect = document.getElementById('log-level-select');
+      const text = textInput.value.trim();
+
+      if (!text && !STATE.selectedGif) return;
+
+      const now = new Date();
+      const timestamp = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+
+      const roomClean = STATE.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      const logsCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_logs`);
+
+      const logData = {
+        streamId: STATE.currentStreamId,
+        timestamp,
+        level: levelSelect.value,
+        sender: STATE.user.handle,
+        role: STATE.user.role,
+        text: text || '[Binary Image Payload Injected]',
+        gif: STATE.selectedGif || null,
+        createdAt: Date.now()
+      };
+
+      textInput.value = '';
+      STATE.selectedGif = null;
+      document.getElementById('attachment-preview').classList.add('hidden');
+
+      try {
+        await addDoc(logsCol, logData);
+      } catch (err) {
+        console.error("Error adding log document:", err);
+      }
+    };
+
+    // APM Inspector Notes Logic
+    window.renderAPMNotes = function() {
+      const feed = document.getElementById('apm-quick-notes-feed');
+      const notes = window.cachedNotes || [
+        { timestamp: '10:00', sender: 'sys_bot', note: 'Session room synchronized.' }
+      ];
+
+      feed.innerHTML = '';
+      notes.forEach(n => {
+        const item = document.createElement('div');
+        item.className = 'bg-slate-950 p-1.5 rounded border border-console-border';
+        item.innerHTML = `<span class="text-slate-500">[${n.timestamp}]</span> <span class="text-emerald-400">${n.sender}:</span> <span class="text-slate-300">${n.note}</span>`;
+        feed.appendChild(item);
+      });
+      feed.scrollTop = feed.scrollHeight;
+    };
+
+    document.getElementById('apm-quick-note-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('apm-note-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const now = new Date();
+      const roomClean = STATE.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      const notesCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_notes`);
+
+      try {
+        await addDoc(notesCol, {
+          timestamp: `${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`,
+          sender: STATE.user.handle,
+          note: text,
+          createdAt: Date.now()
+        });
+        input.value = '';
+      } catch (err) {
+        console.error("Error saving note:", err);
+      }
+    };
+
+    // Incident Response Board Logic
+    window.renderIncidents = function() {
+      const cols = {
+        'triage': document.getElementById('col-triage'),
+        'progress': document.getElementById('col-progress'),
+        'resolved': document.getElementById('col-resolved'),
+        'silenced': document.getElementById('col-silenced')
+      };
+
+      Object.values(cols).forEach(c => c.innerHTML = '');
+
+      const incidents = window.cachedIncidents || [
+        { id: 'INC-101', title: 'Pod Memory Pressure Alert', status: 'progress', priority: 'P1-CRITICAL', desc: 'Auth pod scaling limit exceeded.', replies: [] }
+      ];
+      const counts = { triage: 0, progress: 0, resolved: 0, silenced: 0 };
+
+      incidents.forEach(inc => {
+        if (counts[inc.status] !== undefined) counts[inc.status]++;
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950 border border-console-border p-2.5 rounded cursor-pointer hover:border-amber-500/50 transition space-y-1.5';
+        card.onclick = () => openThreadModal(inc.id);
+
+        let prioColor = 'bg-red-950 text-red-400 border-red-800';
+        if (inc.priority === 'P2-HIGH') prioColor = 'bg-amber-950 text-amber-400 border-amber-800';
+        if (inc.priority === 'P3-LOW') prioColor = 'bg-blue-950 text-blue-400 border-blue-800';
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="font-bold text-slate-400 font-mono">${inc.id}</span>
+            <span class="px-1 rounded border ${prioColor} font-bold">${inc.priority}</span>
+          </div>
+          <div class="font-semibold text-slate-200 text-xs">${inc.title}</div>
+          <div class="text-[10px] text-slate-500 line-clamp-2">${inc.desc}</div>
+          <div class="pt-1 flex justify-between items-center text-[9px] text-slate-600 border-t border-slate-900">
+            <span><i class="fa-solid fa-comments mr-1"></i>${inc.replies ? inc.replies.length : 0} replies</span>
+            <span>Click to trace</span>
+          </div>
+        `;
+
+        if (cols[inc.status]) cols[inc.status].appendChild(card);
+      });
+
+      document.getElementById('count-triage').textContent = counts.triage;
+      document.getElementById('count-progress').textContent = counts.progress;
+      document.getElementById('count-resolved').textContent = counts.resolved;
+      document.getElementById('count-silenced').textContent = counts.silenced;
+    };
+
+    window.openNewIncidentModal = () => document.getElementById('incident-modal')?.classList.remove('hidden');
+    window.closeIncidentModal = () => document.getElementById('incident-modal')?.classList.add('hidden');
+
+    const newIncForm = document.getElementById('new-incident-form');
+    if (newIncForm) {
+      newIncForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('inc-title-input').value.trim();
+        const priority = document.getElementById('inc-priority-select').value;
+        const desc = document.getElementById('inc-desc-input').value.trim();
+
+        if (!title || !desc) return;
+
+        const roomClean = STATE.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+        const incidentsCol = collection(db, 'artifacts', appId, 'public', 'data', `room_${roomClean}_incidents`);
+
+        const newInc = {
+          id: `INC-${Math.floor(100 + Math.random() * 900)}`,
+          title,
+          priority,
+          desc,
+          status: 'triage',
+          replies: [{ sender: STATE.user.handle, text: desc, time: 'Just now' }],
+          createdAt: Date.now()
+        };
+
+        try {
+          await addDoc(incidentsCol, newInc);
+          closeIncidentModal();
+          showToast('Incident Posted to Cluster');
+        } catch (err) {
+          console.error("Error creating incident:", err);
+        }
+      };
+    }
+
+    // Incident Thread Replies
+    window.openThreadModal = function(incId) {
+      STATE.activeThreadId = incId;
+      const incidents = window.cachedIncidents || [];
+      const inc = incidents.find(i => i.id === incId);
+      if (!inc) return;
+
+      document.getElementById('thread-title-display').textContent = `${inc.id}: ${inc.title}`;
+      document.getElementById('thread-priority-badge').textContent = inc.priority;
+
+      renderThreadReplies(inc);
+      document.getElementById('incident-thread-modal').classList.remove('hidden');
+    };
+
+    window.closeThreadModal = () => document.getElementById('incident-thread-modal').classList.add('hidden');
+
+    function renderThreadReplies(inc) {
+      const list = document.getElementById('thread-messages-list');
+      list.innerHTML = '';
+
+      (inc.replies || []).forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'bg-slate-950 p-2 rounded border border-console-border space-y-1';
+        item.innerHTML = `
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="font-bold text-emerald-400">${r.sender}</span>
+            <span class="text-slate-600">${r.time}</span>
+          </div>
+          <div class="text-slate-300">${r.text}</div>
+        `;
+        list.appendChild(item);
+      });
+      list.scrollTop = list.scrollHeight;
+    }
+
+    // RBAC Profile Update
+    document.getElementById('profile-config-form').onsubmit = (e) => {
+      e.preventDefault();
+      STATE.user.handle = document.getElementById('rbac-handle-input').value.trim();
+      STATE.user.role = document.getElementById('rbac-role-select').value;
+      STATE.user.avatar = STATE.user.handle.substring(0,2).toUpperCase();
+
+      updateUserDisplay();
+      showToast('Operator identity updated.');
+    };
+
+    window.renderKeys = function() {
+      const keysList = document.getElementById('keys-list');
+      keysList.innerHTML = `
+        <div class="bg-slate-950 border border-console-border p-2 rounded flex justify-between items-center text-xs">
+          <div>
+            <div class="font-bold text-slate-200">Namespace Auth Key</div>
+            <div class="text-[10px] text-slate-500 font-mono">tm_${STATE.roomCode.toLowerCase()}_${Math.random().toString(36).substring(2, 10)}</div>
+          </div>
+          <button onclick="showToast('Key copied to clipboard')" class="bg-slate-900 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded text-[10px]">
+            Copy Key
+          </button>
+        </div>
+      `;
+    };
+
+    // Panic Stealth Toggle
+    const panicScreen = document.getElementById('panic-screen');
+    const panicOutput = document.getElementById('panic-terminal-output');
+    let panicInterval;
+
+    function togglePanic() {
+      const isHidden = panicScreen.classList.contains('hidden');
+      if (isHidden) {
+        panicScreen.classList.remove('hidden');
+        panicInterval = setInterval(() => {
+          const line = document.createElement('div');
+          line.textContent = `[${new Date().toISOString()}] TRACE sys.kernel: CPU load=14.2% worker_thread_active=${Math.floor(Math.random()*100)}`;
+          panicOutput.appendChild(line);
+          if (panicOutput.children.length > 40) panicOutput.removeChild(panicOutput.firstChild);
+          panicOutput.scrollTop = panicOutput.scrollHeight;
+        }, 150);
+      } else {
+        panicScreen.classList.add('hidden');
+        clearInterval(panicInterval);
+      }
+    }
+
+    document.getElementById('panic-btn').onclick = togglePanic;
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === '`' || e.key === '~') togglePanic();
+    });
+
+    // GIF Modal Handlers
+    document.getElementById('open-gif-modal-btn').onclick = () => {
+      const grid = document.getElementById('gif-grid');
+      grid.innerHTML = '';
+      STATE.presetGifs.forEach(g => {
+        const item = document.createElement('div');
+        item.className = 'cursor-pointer border border-console-border p-1 rounded bg-slate-950 hover:border-emerald-500';
+        item.onclick = () => {
+          STATE.selectedGif = g.url;
+          document.getElementById('attachment-img').src = g.url;
+          document.getElementById('attachment-preview').classList.remove('hidden');
+          document.getElementById('gif-modal').classList.add('hidden');
+        };
+        item.innerHTML = `<img src="${g.url}" class="h-24 w-full object-cover rounded"><div class="text-[9px] text-slate-400 mt-1">${g.title}</div>`;
+        grid.appendChild(item);
+      });
+      document.getElementById('gif-modal').classList.remove('hidden');
+    };
+
+    document.getElementById('close-gif-modal-btn').onclick = document.getElementById('cancel-gif-btn').onclick = () => {
+      document.getElementById('gif-modal').classList.add('hidden');
+    };
+
+    document.getElementById('clear-attachment-btn').onclick = () => {
+      STATE.selectedGif = null;
+      document.getElementById('attachment-preview').classList.add('hidden');
+    };
+
+    // APM Chart Initialization
+    function initAPMCharts() {
+      const ctxCpu = document.getElementById('chart-cpu');
+      if (ctxCpu) {
+        new Chart(ctxCpu, {
+          type: 'line',
+          data: {
+            labels: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25'],
+            datasets: [
+              { label: 'CPU Utilization %', data: [22, 28, 25, 42, 30, 28], borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true },
+              { label: 'Memory %', data: [55, 58, 60, 62, 61, 62], borderColor: '#3B82F6', backgroundColor: 'transparent' }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94A3B8', font: { size: 10 } } } },
+            scales: {
+              x: { grid: { color: '#1F2937' }, ticks: { color: '#94A3B8' } },
+              y: { grid: { color: '#1F2937' }, ticks: { color: '#94A3B8' } }
+            }
+          }
+        });
+      }
+
+      const ctxLatency = document.getElementById('chart-latency');
+      if (ctxLatency) {
+        new Chart(ctxLatency, {
+          type: 'bar',
+          data: {
+            labels: ['auth-svc', 'payment-gateway', 'telemetry-ingest'],
+            datasets: [
+              { label: 'p95 Latency (ms)', data: [8, 18, 142], backgroundColor: '#F59E0B' }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94A3B8', font: { size: 10 } } } },
+            scales: {
+              x: { grid: { color: '#1F2937' }, ticks: { color: '#94A3B8' } },
+              y: { grid: { color: '#1F2937' }, ticks: { color: '#94A3B8' } }
+            }
+          }
+        });
+      }
+    }
+
+    // App Initialization
+    window.addEventListener('load', async () => {
+      await initAuth();
+      initAPMCharts();
+
+      const saved = localStorage.getItem('telemetrics_saved_session');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          STATE.user = parsed.user || STATE.user;
+          STATE.roomCode = parsed.roomCode || STATE.roomCode;
+          document.getElementById('sso-handle-input').value = STATE.user.handle;
+          document.getElementById('sso-room-input').value = STATE.roomCode;
+        } catch (e) {}
+      }
+
+      switchView('landing');
+    });
+  </script>
+</body>
+</html>
